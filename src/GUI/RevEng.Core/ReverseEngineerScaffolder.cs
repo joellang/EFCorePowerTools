@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -71,9 +72,17 @@ namespace RevEng.Core
                     options.UseSchemaFolders,
                     serviceProvider);
 
-            filePaths = Save(
-                scaffoldedModel,
-                Path.GetFullPath(Path.Combine(options.ProjectPath, options.OutputPath ?? string.Empty)));
+            var outputPath = Path.GetFullPath(Path.Combine(options.ProjectPath, options.OutputPath ?? string.Empty));
+
+            if (scaffoldedModel.ContextFile != null)
+            {
+                var contextPath = Path.GetFullPath(Path.Combine(outputPath, scaffoldedModel.ContextFile!.Path));
+                Directory.CreateDirectory(Path.GetDirectoryName(contextPath)!);
+                File.WriteAllText(contextPath, GetReadMeText(options), Encoding.UTF8);
+            }
+
+            filePaths = Save(scaffoldedModel, outputPath);
+            
             return filePaths;
         }
 
@@ -292,6 +301,43 @@ namespace RevEng.Core
             }
 
             return new SavedModelFiles(contextPath, additionalFiles);
+        }
+
+        private static string GetReadMeText(ReverseEngineerCommandOptions options)
+        {
+            var assembly = typeof(ReverseEngineerScaffolder).GetTypeInfo().Assembly;
+            using Stream stream = assembly.GetManifestResourceStream("README.md");
+            using StreamReader reader = new StreamReader(stream, Encoding.UTF8);
+            var content = reader.ReadToEnd();
+
+            return content.Replace("[ProviderName]", GetProviderName(options.DatabaseType), StringComparison.OrdinalIgnoreCase)
+                .Replace("[ConnectionString]", options.ConnectionString, StringComparison.OrdinalIgnoreCase)
+                .Replace("[ContextName]", options.ContextClassName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string GetProviderName(DatabaseType databaseType)
+        {
+            switch (databaseType)
+            {
+                case DatabaseType.Undefined:
+                    return "[ProviderName]";
+                case DatabaseType.SQLServer:
+                    return "SqlServer";
+                case DatabaseType.SQLite:
+                    return "Sqlite";
+                case DatabaseType.Npgsql:
+                    return "Npgsql";
+                case DatabaseType.Mysql:
+                    return "Mysql";
+                case DatabaseType.Oracle:
+                    return "Oracle";
+                case DatabaseType.SQLServerDacpac:
+                    return "SqlServer";
+                case DatabaseType.Firebird:
+                    return "Firebird";
+                default:
+                    return "[ProviderName]";
+            }
         }
 
         private static void ApplyRenamers(IEnumerable<SqlObjectBase> sqlObjects, List<Schema> renamers)

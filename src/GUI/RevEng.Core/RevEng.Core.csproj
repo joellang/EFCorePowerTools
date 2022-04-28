@@ -8,10 +8,12 @@
   <ItemGroup>
     <None Remove="DbContextExtensions" />
     <None Remove="Procedures\DbContextExtensions.cs.txt" />
+    <None Remove="README.md" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="DbContextExtensions" />
+    <EmbeddedResource Include="README.md" />
   </ItemGroup>
   
   <ItemGroup>
